@@ -132,15 +132,26 @@ func (pr *proxyingRegistry) Repositories(ctx context.Context, repos []string, la
 	return pr.embedded.Repositories(ctx, repos, last)
 }
 
+type NamedPath interface {
+	Path() string
+}
+
 func (pr *proxyingRegistry) Repository(ctx context.Context, name reference.Named) (distribution.Repository, error) {
 	c := pr.authChallenger
+
+	repository := name.Name()
+	if pr.enableNamespaces {
+		if path, ok := name.(NamedPath); ok {
+			repository = path.Path()
+		}
+	}
 
 	tkopts := auth.TokenHandlerOptions{
 		Transport:   http.DefaultTransport,
 		Credentials: c.credentialStore(),
 		Scopes: []auth.Scope{
 			auth.RepositoryScope{
-				Repository: name.Name(),
+				Repository: repository,
 				Actions:    []string{"pull"},
 			},
 		},
